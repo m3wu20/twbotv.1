@@ -1,4 +1,3 @@
-from ast import Not
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -9,22 +8,21 @@ import os
 
 
 WCA_BASE_URL = "https://www.worldcubeassociation.org/api/v0/persons/"
-
 DATA_FILE = "users.json"
-OWNER_ID = 1388145500099973283  
+
+OWNER_ID = 1388145500099973283
 ADMIN_IDS = {1389536857200656385}
 WCA_ROLE_ID = 1389535445368438794
-
 GROUP_WITH_ID = "1389535445368438794"
 GROUP_NO_ID = "1392134495271911554"
 
-intents = discord.Intents.default()
-intents.members = True  
-intents.message_content = True
-client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+tree = bot.tree
 
 
 def load_data():
@@ -39,7 +37,6 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-
 def get_wca_user(wca_id):
     url = f"https://www.worldcubeassociation.org/api/v0/persons/{wca_id}"
     r = requests.get(url)
@@ -47,12 +44,14 @@ def get_wca_user(wca_id):
         return r.json()
     return None
 
+
+
 @tree.command(name="wca", description="查詢WCA選手資料")
 @app_commands.describe(wcaid="輸入WCA ID")
 async def wca(interaction: discord.Interaction, wcaid: str):
     await interaction.response.defer()
-
     wca_user = get_wca_user(wcaid)
+
     if not wca_user:
         await interaction.followup.send("查無此WCA選手", ephemeral=True)
         return
@@ -65,26 +64,21 @@ async def wca(interaction: discord.Interaction, wcaid: str):
     competition_count = wca_user.get("competition_count", 0)
     country_flag = f":flag_{country.lower()}:" if country else ""
     new_nick = f"{name} ({name_native})" if name_native else name
-
-    
     avatar = wca_user.get("user", {}).get("avatar", {})
     avatar_url = avatar.get("url") or "https://www.worldcubeassociation.org/assets/WCA_logo_square-200.png"
 
-    
     member = interaction.guild.get_member(interaction.user.id)
     try:
         await member.edit(nick=new_nick)
     except Exception as e:
         print(f"改暱稱失敗: {e}")
 
-  
     role = interaction.guild.get_role(WCA_ROLE_ID)
     if role:
         try:
             await member.add_roles(role)
         except Exception as e:
             print(f"加入 WCA 身分組失敗: {e}")
-
 
     embed = discord.Embed(
         title="✅ WCA 身分綁定成功",
@@ -123,7 +117,7 @@ async def wca_set(interaction: discord.Interaction, user_id: str, wca_id: str):
     if user_id not in users:
         users[user_id] = {}
     users[user_id]["wca_id"] = wca_id
-    users[user_id]["nickname"] = wca_user["name"]
+    users[user_id]["nickname"] = wca_user["person"]["name"]
     users[user_id]["group"] = GROUP_WITH_ID
     save_data(users)
     await interaction.response.send_message(f"成功設定 {user_id} 的WCA ID為 {wca_id}")
@@ -140,15 +134,13 @@ async def set_nickname(interaction: discord.Interaction, nickname: str):
     users[user_id]["group"] = GROUP_NO_ID
     save_data(users)
 
-    
     member = interaction.guild.get_member(interaction.user.id)
     try:
         await member.edit(nick=nickname)
     except Exception as e:
         print(f"改暱稱失敗: {e}")
 
-    
-    role = interaction.guild.get_role(1392134495271911554)
+    role = interaction.guild.get_role(int(GROUP_NO_ID))
     if role:
         try:
             await member.add_roles(role)
@@ -156,6 +148,7 @@ async def set_nickname(interaction: discord.Interaction, nickname: str):
             print(f"加入無WCA ID身分組失敗: {e}")
 
     await interaction.response.send_message(f"暱稱設定為 {nickname}，且無 WCA ID")
+
 
 @tree.command(name="抽獎", description="管理員抽獎")
 async def lottery(interaction: discord.Interaction):
@@ -169,12 +162,20 @@ async def lottery(interaction: discord.Interaction):
         await interaction.response.send_message("目前沒有可抽獎的成員", ephemeral=True)
         return
     winner = random.choice(participants)
-    await interaction.response.send_message(f"抽獎結果！得獎者是：{users[winner]['nickname']} (ID: {winner})")
+    await interaction.response.send_message(f"🎉 抽獎結果！得獎者是：{users[winner]['nickname']} (ID: {winner})")
+
+
 
 
 @bot.event
 async def on_ready():
-    print(f"機器人已啟動：{bot.user}")
+    try:
+        synced = await tree.sync()
+        print(f"✅ 指令同步完成，共 {len(synced)} 個指令")
+    except Exception as e:
+        print(f"❌ 同步失敗: {e}")
+    print(f"🤖 機器人已啟動：{bot.user}")
+
 
 @bot.event
 async def on_member_join(member: discord.Member):
@@ -182,40 +183,27 @@ async def on_member_join(member: discord.Member):
     if not channel:
         return
 
-    guild_name = member.guild.name
-
-    
     embed = discord.Embed(
-        title=f"歡迎加入 **{guild_name}**！",
+        title=f"歡迎加入 **{member.guild.name}**！",
         description=(
             "請選擇下面的按鈕：\n"
-            "如果你有 WCA ID 請點「怎麼使用/wca」\n"
-            "如果你沒有 WCA ID 請點「怎麼使用/設定暱稱」"
+            "✅ 有 WCA ID 請點「怎麼使用/wca」\n"
+            "❌ 沒有 WCA ID 請點「怎麼使用/設定暱稱」"
         ),
         color=discord.Color.blue()
     )
     embed.set_footer(text="by TW魔術方塊交流群 [beta]")
 
-    
     class WelcomeView(discord.ui.View):
         @discord.ui.button(label="怎麼使用/wca", style=discord.ButtonStyle.primary, custom_id="wca_id")
         async def wca_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-            await interaction.response.send_message("/wca 輸入你的ID\n"
-            "就可以了喔<3", ephemeral=True)
+            await interaction.response.send_message("/wca 輸入你的ID\n就可以了喔<3", ephemeral=True)
 
         @discord.ui.button(label="怎麼使用/設定暱稱", style=discord.ButtonStyle.secondary, custom_id="set_nick")
         async def nick_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-            await interaction.response.send_message("/設定暱稱 你的暱稱！\n" \
-            "就可以了喔<3", ephemeral=True)
+            await interaction.response.send_message("/設定暱稱 你的暱稱！\n就可以了喔<3", ephemeral=True)
+
+    await channel.send(content=member.mention, embed=embed, view=WelcomeView())
 
 
-
-    view = WelcomeView()
-
-    await channel.send(content=member.mention, embed=embed, view=view)
-
-
-
-
-
-bot.run("bottoken")
+bot.run("BOTTOKEN")
