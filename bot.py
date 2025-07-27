@@ -11,7 +11,7 @@ import os
 WCA_BASE_URL = "https://www.worldcubeassociation.org/api/v0/persons/"
 
 DATA_FILE = "users.json"
-OWNER_ID = 1388145500099973283  # 注意轉成 int
+OWNER_ID = 1388145500099973283  
 ADMIN_IDS = {1389536857200656385}
 WCA_ROLE_ID = 1389535445368438794
 
@@ -19,7 +19,7 @@ GROUP_WITH_ID = "1389535445368438794"
 GROUP_NO_ID = "1392134495271911554"
 
 intents = discord.Intents.default()
-intents.members = True  # 改暱稱需要 members intent
+intents.members = True  
 intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
@@ -66,18 +66,18 @@ async def wca(interaction: discord.Interaction, wcaid: str):
     country_flag = f":flag_{country.lower()}:" if country else ""
     new_nick = f"{name} ({name_native})" if name_native else name
 
-    # 正確取得 WCA 頭像
+    
     avatar = wca_user.get("user", {}).get("avatar", {})
     avatar_url = avatar.get("url") or "https://www.worldcubeassociation.org/assets/WCA_logo_square-200.png"
 
-    # 嘗試改 Discord 暱稱
+    
     member = interaction.guild.get_member(interaction.user.id)
     try:
         await member.edit(nick=new_nick)
     except Exception as e:
         print(f"改暱稱失敗: {e}")
 
-    # 加入身分組
+  
     role = interaction.guild.get_role(WCA_ROLE_ID)
     if role:
         try:
@@ -85,7 +85,7 @@ async def wca(interaction: discord.Interaction, wcaid: str):
         except Exception as e:
             print(f"加入 WCA 身分組失敗: {e}")
 
-    # 建立 Embed
+
     embed = discord.Embed(
         title="✅ WCA 身分綁定成功",
         description=(
@@ -140,14 +140,14 @@ async def set_nickname(interaction: discord.Interaction, nickname: str):
     users[user_id]["group"] = GROUP_NO_ID
     save_data(users)
 
-    # 更改暱稱
+    
     member = interaction.guild.get_member(interaction.user.id)
     try:
         await member.edit(nick=nickname)
     except Exception as e:
         print(f"改暱稱失敗: {e}")
 
-    # 加入身分組
+    
     role = interaction.guild.get_role(1392134495271911554)
     if role:
         try:
@@ -184,7 +184,7 @@ async def on_member_join(member: discord.Member):
 
     guild_name = member.guild.name
 
-    # 建立嵌入訊息
+    
     embed = discord.Embed(
         title=f"歡迎加入 **{guild_name}**！",
         description=(
@@ -196,7 +196,7 @@ async def on_member_join(member: discord.Member):
     )
     embed.set_footer(text="by TW魔術方塊交流群 [beta]")
 
-    # 建立按鈕元件
+    
     class WelcomeView(discord.ui.View):
         @discord.ui.button(label="怎麼使用/wca", style=discord.ButtonStyle.primary, custom_id="wca_id")
         async def wca_button(self, interaction: discord.Interaction, button: discord.ui.Button):
